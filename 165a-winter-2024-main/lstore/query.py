@@ -21,7 +21,8 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        if primary_key not in self.table.page_directory:
+        # dont we have to iterate through each page to find the specific rid to delete
+        if primary_key not in self.table.page_directory: 
             return False
         #check for locked
         # if primary key is locked
