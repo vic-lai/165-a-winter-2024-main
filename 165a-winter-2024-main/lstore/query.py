@@ -65,12 +65,12 @@ class Query:
     """
     def select(self, search_key, search_key_index, projected_columns_index):
         pass
-        # records = []
-        # record = self.table.get_record(search_key)
-        # if record:
-        #     projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
-        #     records.append(Record(record.rid, record.key, projected_record))
-        # return records
+        records = []
+        for record in self.table.page_directory.values():
+            if record.columns[search_key_index] == search_key:
+                projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
+                records.append(Record(record.rid, record.key, projected_record))
+        return records
 
     
     """
@@ -93,13 +93,11 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        pass
-        # record = self.table.get_record(primary_key)
-        # if record:
-        #     updated_record = Record(record.rid, primary_key, columns)
-        #     self.table.update_record(updated_record)
-        #     return True
-        # return False
+        record = self.table.page_directory.get(primary_key)
+        if record:
+            record.columns = columns
+            return True
+        return False
 
     
     """
