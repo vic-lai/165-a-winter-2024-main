@@ -15,7 +15,12 @@ class Index:
     # returns the location of all records with the given value on column "column"
     """
 
-    def locate(self, column, value): 
+    def locate(self, column, value):
+        index = self.indices[column]
+        if index is not None:
+            return index.get(value, [])
+        else:
+            return []
         pass
 
     """
@@ -23,15 +28,26 @@ class Index:
     """
 
     def locate_range(self, begin, end, column):
-        
-        pass
+        index = self.indices[column]
+        if index is not None:
+            return [rid for value, rid in index.items() if begin <= value <= end]
+        else:
+            return[]
 
     """
     # optional: Create index on specific column
     """
 
     def create_index(self, column_number):
-        pass
+        if self.indices[column_number] is None:
+            self.indices[column_number] = {}
+            for page in self.table.page_directory.values():
+                for record in page.records:
+                    value = record.columns[column_number]
+                    if value not in self.indices[column_number]:
+                        self.indices[column_number][value] = []
+                    self.indices[column_number][value].append(record.rid)
+                    
 
     """
     # optional: Drop index of specific column
