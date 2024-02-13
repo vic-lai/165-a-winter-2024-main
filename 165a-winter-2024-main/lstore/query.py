@@ -1,6 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
-
+from lstore.page import BasePage, TailPage
+import uuid
 
 class Query:
     """
@@ -37,8 +38,21 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        pass
+        
+        current_base_page=self.table.base_page[-1]
+        row_index=current_base_page.get_len()-1
+        page_index=len(self.table.base_page)-1
+        rid=str(uuid.uuid4())
 
+        # if len(current_base_page)+1> 4096:
+        #     self.table.base_page.append([])
+        if not current_base_page.has_space():
+            self.table.base_page.append(BasePage(self.table.num_columns))
+        record = Record(rid=rid, key=row_index, columns=columns)
+        current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
+
+        self.table.page_directory[rid]=(page_index,row_index)
+        return True
     
     """
     # Read matching record with specified search key
@@ -50,12 +64,13 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        records = []
-        record = self.table.get_record(search_key)
-        if record:
-            projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
-            records.append(Record(record.rid, record.key, projected_record))
-        return records
+        pass
+        # records = []
+        # record = self.table.get_record(search_key)
+        # if record:
+        #     projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
+        #     records.append(Record(record.rid, record.key, projected_record))
+        # return records
 
     
     """
@@ -78,12 +93,13 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        record = self.table.get_record(primary_key)
-        if record:
-            updated_record = Record(record.rid, primary_key, columns)
-            self.table.update_record(updated_record)
-            return True
-        return False
+        pass
+        # record = self.table.get_record(primary_key)
+        # if record:
+        #     updated_record = Record(record.rid, primary_key, columns)
+        #     self.table.update_record(updated_record)
+        #     return True
+        # return False
 
     
     """

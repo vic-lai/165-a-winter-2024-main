@@ -1,4 +1,5 @@
 from lstore.index import Index
+from lstore.page import BasePage, TailPage
 from time import time
 
 INDIRECTION_COLUMN = 0
@@ -27,6 +28,10 @@ class Table:
         self.num_columns = num_columns
         self.page_directory = {} # stores RIDS of pages
         self.index = Index(self)
+        self.base_page=[BasePage(num_columns)]
+        self.tail_page=[TailPage(num_columns)]
+        # self.base_page=[[]]
+        # self.tail_page=[[]]
         pass
 
     def __merge(self):
