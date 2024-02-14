@@ -1,7 +1,6 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 from lstore.page import BasePage, TailPage
-import uuid
 
 class Query:
     """
@@ -28,6 +27,7 @@ class Query:
         #check for locked
         # if primary key is locked
         del self.table.page_directory[primary_key]
+        
         return True
     
     
@@ -42,7 +42,7 @@ class Query:
         current_base_page=self.table.base_page[-1]
         row_index=current_base_page.get_len()-1
         page_index=len(self.table.base_page)-1
-        rid=str(uuid.uuid4())
+        rid=self.table.num_records
 
         # if len(current_base_page)+1> 4096:
         #     self.table.base_page.append([])
@@ -52,6 +52,9 @@ class Query:
         current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
 
         self.table.page_directory[rid]=(page_index,row_index)
+
+        # increment num_records upon successful insertion
+        self.table.num_records += 1
         return True
     
     """
