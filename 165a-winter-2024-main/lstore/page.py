@@ -6,11 +6,18 @@ class Page:
         self.data = bytearray(4096)
 
     def has_capacity(self):
-        pass
+        return self.num_records < 1024
 
     def write(self, value):
+        if not self.has_capacity():
+            raise ValueError("Page is full.")
+        record_size = len(value)
+        if record_size > 4096:
+            raise ValueError("Record size too big.")
+        start_index = self.num_records * 4
+        self.data[start_index:start_index + record_size] = value
         self.num_records += 1
-        pass
+        
 
 class BasePage:
     def __init__(self, num_columns):
