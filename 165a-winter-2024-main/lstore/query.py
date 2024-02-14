@@ -156,12 +156,12 @@ class Query:
             self.table.tail_page.append(TailPage(self.table.num_columns))
             current_tail_page = self.table.tail_page[-1]
         new_record = Record(rid, row_index, columns)
-        current_tail_page.records.append([rid,row_index]+[record]+[schema])
+        current_tail_page.records.append([rid,row_index]+[new_record]+[schema])
         self.table.record_metadata[rid] = [prev_indirection, rid, timestamp, schema]
 
         self.table.page_directory[rid]=("tail", page_index,row_index)
 
-        # change indirection of base record to the new tail record
+        # change indirection of base record to the new tail record rid
         record_metadata[0] = rid
 
         # increment num_records upon successful update
