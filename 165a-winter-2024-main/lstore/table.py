@@ -1,5 +1,5 @@
 from lstore.index import Index
-from lstore.page import BasePage, TailPage
+from lstore.page import Page
 from time import time
 
 # -1 = delete
@@ -71,3 +71,9 @@ class Table:
             r_index = self.pages[type][col][page_index].write(value)
         return page_index, r_index
  
+    def create_base_pages(self, num_columns):
+        for i in range(num_columns):
+            self.create_page("base", i)
+
+    def create_page(self, type, col):
+        self.pages[type][col] = Page()
