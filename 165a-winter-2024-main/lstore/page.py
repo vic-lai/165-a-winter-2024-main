@@ -24,7 +24,7 @@ class Page:
 
 class BasePage(Page):
     def __init__(self, num_columns):
-        super.__init__()
+        super().__init__()
         self.num_columns= num_columns
         self.records=[]
     def has_space(self):
@@ -34,6 +34,6 @@ class BasePage(Page):
 
 class TailPage(Page):
     def __init__(self, num_columns):
-        super.__init__()
+        super().__init__()
         self.num_columns= num_columns
         self.records=[]

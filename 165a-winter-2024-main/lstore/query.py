@@ -60,7 +60,7 @@ class Query:
         record = Record(rid=rid, key=row_index, columns=list(columns))
         current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
 
-        self.table.page_directory[rid]=(page_index,row_index)
+        self.table.page_directory[rid]=("base", page_index,row_index)
 
         # increment num_records upon successful insertion
         self.table.num_records += 1
@@ -77,7 +77,13 @@ class Query:
     """
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
-        for record in self.table.page_directory.values():
+        for page_type, page_index, row_index in self.table.page_directory.values():
+            page = None
+            if page_type == "base":
+                page = self.table.base_page
+            else:
+                page = self.table.base_page
+            record = page[page_index].records[row_index][2]
             if record.columns[search_key_index] == search_key:
                 projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
                 records.append(Record(record.rid, record.key, projected_record))
