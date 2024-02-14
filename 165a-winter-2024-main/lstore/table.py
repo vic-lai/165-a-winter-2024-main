@@ -30,6 +30,7 @@ class Table:
         self.index = Index(self)
         self.base_page=[BasePage(num_columns)]
         self.tail_page=[TailPage(num_columns)]
+        self.num_records = 0
         # self.base_page=[[]]
         # self.tail_page=[[]]
         pass

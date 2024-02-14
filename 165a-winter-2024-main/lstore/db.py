@@ -28,9 +28,12 @@ class Database():
     # Deletes the specified table
     """
     def drop_table(self, name):
-        for table in self.tables:
-            if name==table.name:
-                del table
+        for i, table in enumerate(self.tables):
+            if name == table.name:
+                del self.tables[i]
+
+                # WIP: fix this, this will just unmap table from memory which is already done automatically when code gets out of scope
+                # del table
         
 
     
