@@ -112,6 +112,7 @@ class Query:
     """
     def sum(self, start_range, end_range, aggregate_column_index):
         # initial value
+        records_exist=False
         sum = 0
         # iterate through each key in the range and select the records that contain the key 
         for key in range(start_range, end_range + 1):
@@ -120,7 +121,10 @@ class Query:
             if records:
                 value = records[0].columns[aggregate_column_index]
                 sum += value
-        return sum
+                records_exist=True
+        if records_exist:
+            return sum
+        return False
 
     
     """
