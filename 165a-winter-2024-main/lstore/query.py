@@ -39,16 +39,25 @@ class Query:
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
         
+        # get last base page
         current_base_page=self.table.base_page[-1]
+        # get last record index
         row_index=current_base_page.get_len()-1
+        # get last base page index
         page_index=len(self.table.base_page)-1
+
+        # assign rid to new record
         rid=self.table.num_records
 
         # if len(current_base_page)+1> 4096:
         #     self.table.base_page.append([])
+
+        # if current base page does not have enough space
         if not current_base_page.has_space():
+            # make a new base page 
             self.table.base_page.append(BasePage(self.table.num_columns))
-        record = Record(rid=rid, key=row_index, columns=columns)
+            current_base_page = self.table.base_page[-1]
+        record = Record(rid=rid, key=row_index, columns=list(columns))
         current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
 
         self.table.page_directory[rid]=(page_index,row_index)
