@@ -38,21 +38,16 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
+        rid = self.table.num_records
+        indirection = rid
+        timestamp = None
+
+        self.table.insert(indirection, rid, timestamp, schema_encoding, list(columns))
         
-        current_base_page=self.table.base_page[-1]
-        row_index=current_base_page.get_len()-1
-        page_index=len(self.table.base_page)-1
-        rid=str(uuid.uuid4())
-
-        # if len(current_base_page)+1> 4096:
-        #     self.table.base_page.append([])
-        if not current_base_page.has_space():
-            self.table.base_page.append(BasePage(self.table.num_columns))
-        record = Record(rid=rid, key=row_index, columns=columns)
-        current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
-
-        self.table.page_directory[rid]=(page_index,row_index)
-        return True
+        record = Record(rid=rid, key=rid, columns=columns)
+        
+        self.table.num_records += 1
+        return record
     
     """
     # Read matching record with specified search key

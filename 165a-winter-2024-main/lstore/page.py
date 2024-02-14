@@ -1,34 +1,23 @@
 
+PAGE_SIZE = 4096
 class Page:
 
     def __init__(self):
         self.num_records = 0
-        self.data = bytearray(4096)
+        self.data = bytearray(PAGE_SIZE)
 
     def has_capacity(self):
-        return self.num_records < 1024
+        if len(self.data) < PAGE_SIZE:
+            return True
+        return False
+        pass
 
     def write(self, value):
-        if not self.has_capacity():
-            raise ValueError("Page is full.")
-        record_size = len(value)
-        if record_size > 4096:
-            raise ValueError("Record size too big.")
-        start_index = self.num_records * 4
-        self.data[start_index:start_index + record_size] = value
-        self.num_records += 1
-        
-
-class BasePage:
-    def __init__(self, num_columns):
-        self.num_columns= num_columns
-        self.records=[]
-    def has_space(self):
-        return len(self.records)+1<=4096
-    def get_len(self):
-        return len(self.records)
-
-class TailPage:
-    def __init__(self, num_columns):
-        self.num_columns= num_columns
-        self.records=[]
+        index = self.num_records * 8
+        if self.has_capacity():
+            # check if remaining space in self.data is enough to store value
+            if PAGE_SIZE - len(self.data) <= 8:
+                self.data[index : index + 8] = value.to_bytes(8, byteorder='big')
+                return index
+        return False
+        pass
