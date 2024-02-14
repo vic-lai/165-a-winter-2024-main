@@ -108,7 +108,16 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        # initial value
+        sum = 0
+        # iterate through each key in the range and select the records that contain the key 
+        for key in range(start_range, end_range + 1):
+            records = self.select(key, self.table.key, [1] * self.table.num_columns)
+            # if record exists select the column based on the index and add it to sum
+            if records:
+                value = records[0].columns[aggregate_column_index]
+                sum += value
+        return sum
 
     
     """
