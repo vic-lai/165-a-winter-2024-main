@@ -49,6 +49,11 @@ class Query:
         # assign rid to new record
         rid=self.table.num_records
 
+        # indirection
+        indirection = rid
+        # timestamp
+        timestamp = None
+
         # if len(current_base_page)+1> 4096:
         #     self.table.base_page.append([])
 
@@ -59,6 +64,7 @@ class Query:
             current_base_page = self.table.base_page[-1]
         record = Record(rid=rid, key=row_index, columns=list(columns))
         current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
+        self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
 
         self.table.page_directory[rid]=("base", page_index,row_index)
 
@@ -75,15 +81,19 @@ class Query:
     # Returns False if record locked by TPL
     # Assume that select will never be called on a key that doesn't exist
     """
+
+    def getRecord(self, page_type, page_index, row_index):
+        page = None
+        if page_type == "base":
+            page = self.table.base_page
+        else:
+            page = self.table.tail_page
+        return page[page_index].records[row_index] # returns [rid, key, class record, schema encoding]
+
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
         for page_type, page_index, row_index in self.table.page_directory.values():
-            page = None
-            if page_type == "base":
-                page = self.table.base_page
-            else:
-                page = self.table.base_page
-            record = page[page_index].records[row_index][2]
+            record = self.getRecord(page_type, page_index, row_index)[2] # class record
             if record.columns[search_key_index] == search_key:
                 projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
                 records.append(Record(record.rid, record.key, projected_record))
@@ -109,12 +119,70 @@ class Query:
     # Returns True if update is succesful
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
+    # WIP: MAY HAVE MISSED SOMETHING, CHECK IF THIS IS RIGHT
     def update(self, primary_key, *columns):
+        columns = list(columns)
         record = self.table.page_directory.get(primary_key)
-        if record:
-            record.columns = columns
-            return True
-        return False
+        # WIP: CAN YOU UPDATE A TAIL PAGE RECORD???
+        if not record:
+            return False
+        page_type, page_index, row_index = record
+        record = self.getRecord(page_type, page_index, row_index)
+        
+        # new record, rid
+        rid = self.table.num_records
+        
+        # get metadata of record
+        record_metadata = self.table.record_metadata[record[0]]
+        # previous indirection rid
+        prev_indirection = record_metadata[0]
+
+        # check if elements are changed, update schema
+        schema = self.updateSchema(columns, record, record_metadata)
+
+        # timestamp
+        timestamp = None
+        
+        # insert but onto the tail page
+        ## get last tail page
+        current_tail_page=self.table.tail_page[-1]
+        ## get last record index
+        row_index=current_tail_page.get_len()-1
+        ## get last tail page index
+        page_index=len(self.table.tail_page)-1
+
+        if not current_tail_page.has_space():
+            # make a new tail page 
+            self.table.tail_page.append(TailPage(self.table.num_columns))
+            current_tail_page = self.table.tail_page[-1]
+        new_record = Record(rid, row_index, columns)
+        current_tail_page.records.append([rid,row_index]+[record]+[schema])
+        self.table.record_metadata[rid] = [prev_indirection, rid, timestamp, schema]
+
+        self.table.page_directory[rid]=("tail", page_index,row_index)
+
+        # change indirection of base record to the new tail record
+        record_metadata[0] = rid
+
+        # increment num_records upon successful update
+        self.table.num_records += 1
+        return True
+
+    def updateSchema(self, columns, record, record_metadata):
+        schema = record_metadata[3]
+        ## get the indexes where schema[i] == 0, that means these columns stayed the same
+        i = 0
+        cols_unchanged = []
+        while i != -1: # until find() does not find any 0's
+            index_first_zero = schema[i:].find('0')
+            if index_first_zero != -1:
+                cols_unchanged.append(index_first_zero)
+            i = index_first_zero + 1
+        ## compare if these columns are being updated, update schema if they are
+        for i in cols_unchanged:
+            if columns[i] != record[2].columns[i]:
+                schema[i] = '1'
+        return schema
 
     
     """

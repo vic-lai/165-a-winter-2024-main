@@ -37,3 +37,7 @@ class TailPage(Page):
         super().__init__()
         self.num_columns= num_columns
         self.records=[]
+    def has_space(self):
+        return self.has_capacity()
+    def get_len(self):
+        return len(self.records)
