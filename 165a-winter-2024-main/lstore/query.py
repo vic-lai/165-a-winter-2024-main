@@ -86,7 +86,7 @@ class Query:
             # make a new base page
             new_base_page=BasePage(self.table.num_columns)
             # append it onto the table
-            self.table.base_pages.append(new_base_page)
+            self.table.base_page.append(new_base_page)
             # make that the current base page
             current_base_page = self.table.base_page[-1]
         # put record data in base page
@@ -102,8 +102,11 @@ class Query:
         row_index=current_base_page.get_len()-1
         page_index=len(self.table.base_page)-1
         # FIXME: how do u know if the record is in the base page or tail page?
-        self.table.page_directory[rid]=(page_index, row_index)
+        self.table.page_directory[rid]=("base", page_index, row_index)
 
+        print("-- insert", self.getRecord("base", page_index, row_index))
+        print("   in ", page_index, row_index)
+        current_base_page.num_records += 1
         self.table.num_records += 1
         return True
     
@@ -123,15 +126,19 @@ class Query:
             page = self.table.base_page
         else:
             page = self.table.tail_page
-        return page[page_index].records[row_index] # returns [rid, key, class record, schema encoding]
+        record = []
+        for col in page[page_index].records:
+            record.append(col[row_index])
+        return record # returns [columns, indirection, rid, timestamp, schema encoding]
 
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
         for page_type, page_index, row_index in self.table.page_directory.values():
-            record = self.getRecord(page_type, page_index, row_index)[2] # class record
-            if record.columns[search_key_index] == search_key:
-                projected_record = [record.columns[i] for i in range(len(record.columns)) if projected_columns_index[i]]
-                records.append(Record(record.rid, record.key, projected_record))
+            record = self.getRecord(page_type, page_index, row_index)
+            print("record", record)
+            if record[search_key_index] == search_key:
+                projected_record = [record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
+                records.append(Record(record[-3], record[-3], projected_record))
         return records
 
     
