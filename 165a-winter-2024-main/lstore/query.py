@@ -214,7 +214,7 @@ class Query:
             current_tail_page.records[i].append(value)
         
         #adding indirection, schema, rid to basepage
-        current_tail_page.records[-4].append(rid) # indirection
+        current_tail_page.records[-4].append(prev_indirection) # indirection
         current_tail_page.records[-3].append(rid) # rid
         current_tail_page.records[-2].append(timestamp) # timestamp
         current_tail_page.records[-1].append(schema) # schema
@@ -228,11 +228,16 @@ class Query:
         # print(len(self.table.page_directory), self.table.page_directory.values())
 
         current_tail_page.num_records += 1
-        # increment num_records upon successful update
-        self.table.num_records += 1
 
         # change indirection of base record to the new tail record rid
-        record_metadata[0] = rid
+        base_rid = prev_indirection
+        while self.table.page_directory[base_rid][0] != "page":
+            base_record = self.getRecord(self.table.page_directory[base_rid])
+
+            base_rid = base_record
+
+        # increment num_records upon successful update
+        self.table.num_records += 1
         return True
 
     def updateSchema(self, columns, record, record_metadata):
