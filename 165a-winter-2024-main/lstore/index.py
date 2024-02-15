@@ -21,7 +21,7 @@ class Index:
             return index.get(value, [])
         else:
             return []
-        pass
+        
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
