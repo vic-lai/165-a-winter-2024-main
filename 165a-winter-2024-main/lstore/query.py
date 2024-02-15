@@ -36,39 +36,74 @@ class Query:
     # Return True upon succesful insertion
     # Returns False if insert fails for whatever reason
     """
-    def insert(self, *columns):
-        schema_encoding = '0' * self.table.num_columns
+    # def insert(self, *columns):
+    #     schema_encoding = '0' * self.table.num_columns
         
+    #     # get last base page
+    #     current_base_page=self.table.base_page[-1]
+    #     # get last record index
+    #     row_index=current_base_page.get_len()-1
+    #     # get last base page index
+    #     page_index=len(self.table.base_page)-1
+
+    #     # assign rid to new record
+    #     rid=self.table.num_records
+
+    #     # indirection
+    #     indirection = rid
+    #     # timestamp
+    #     timestamp = None
+
+    #     # if len(current_base_page)+1> 4096:
+    #     #     self.table.base_page.append([])
+
+    #     # if current base page does not have enough space
+    #     if not current_base_page.has_space():
+    #         # make a new base page 
+    #         self.table.base_page.append(BasePage(self.table.num_columns))
+    #         current_base_page = self.table.base_page[-1]
+    #     record = Record(rid=rid, key=row_index, columns=list(columns))
+    #     current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
+    #     self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
+
+    #     self.table.page_directory[rid]=("base", page_index,row_index)
+
+    #     # increment num_records upon successful insertion
+    #     self.table.num_records += 1
+    #     return True
+    
+    def insert(self, *columns): 
+        # assign new rid to new record
+        rid=self.table.num_records
+        # schema for new record
+        schema_encoding = '0' * self.table.num_columns
+        # timestamp: for future milestones
+        timestamp = None
         # get last base page
         current_base_page=self.table.base_page[-1]
-        # get last record index
-        row_index=current_base_page.get_len()-1
-        # get last base page index
-        page_index=len(self.table.base_page)-1
-
-        # assign rid to new record
-        rid=self.table.num_records
-
-        # indirection
-        indirection = rid
-        # timestamp
-        timestamp = None
-
-        # if len(current_base_page)+1> 4096:
-        #     self.table.base_page.append([])
-
-        # if current base page does not have enough space
+        # if current base page does not have space
         if not current_base_page.has_space():
-            # make a new base page 
-            self.table.base_page.append(BasePage(self.table.num_columns))
+            # make a new base page
+            new_base_page=BasePage(self.table.num_columns)
+            # append it onto the table
+            self.table.base_pages.append(new_base_page)
+            # make that the current base page
             current_base_page = self.table.base_page[-1]
-        record = Record(rid=rid, key=row_index, columns=list(columns))
-        current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
-        self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
+        # put record data in base page
+        for i, value in enumerate(columns):
+            current_base_page.records[i].append(value)
+        
+        #adding indirection, schema, rid to basepage
+        current_base_page.records[-4].append(rid) # indirection
+        current_base_page.records[-3].append(rid) # rid
+        current_base_page.records[-2].append(timestamp) # timestamp
+        current_base_page.records[-1].append(schema_encoding) # schema
 
-        self.table.page_directory[rid]=("base", page_index,row_index)
+        row_index=current_base_page.get_len()-1
+        page_index=len(self.table.base_page)-1
+        # FIXME: how do u know if the record is in the base page or tail page?
+        self.table.page_directory[rid]=(page_index, row_index)
 
-        # increment num_records upon successful insertion
         self.table.num_records += 1
         return True
     

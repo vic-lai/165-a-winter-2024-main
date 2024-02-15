@@ -26,7 +26,7 @@ class BasePage(Page):
     def __init__(self, num_columns):
         super().__init__()
         self.num_columns= num_columns
-        self.records=[]
+        self.records=[[] for _ in range(num_columns+4)]
     def has_space(self):
         return self.has_capacity()
     def get_len(self):
@@ -36,7 +36,7 @@ class TailPage(Page):
     def __init__(self, num_columns):
         super().__init__()
         self.num_columns= num_columns
-        self.records=[]
+        self.records=[[] for _ in range(num_columns+4)]
     def has_space(self):
         return self.has_capacity()
     def get_len(self):
