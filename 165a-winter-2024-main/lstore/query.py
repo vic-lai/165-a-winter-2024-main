@@ -21,15 +21,23 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        # dont we have to iterate through each page to find the specific rid to delete
-        if primary_key not in self.table.page_directory: 
-            return False
         #check for locked
         # if primary key is locked
-        del self.table.page_directory[primary_key]
-        
-        return True
-    
+        for key in self.table.page_directory:
+            page_index=self.table.page_directory[key][1]
+            row_index=self.table.page_directory[key][2]
+            key_index=self.table.key
+            #check base page
+            if self.table.page_directory[key][0]=="base":     
+                if self.table.base_page[page_index].records[key_index][row_index]== primary_key:
+                    del self.table.page_directory[key]
+                    return True
+            #check tail page
+            else:
+                if self.table.tail_page[page_index].records[key_index][row_index]== primary_key:
+                    del self.table.page_directory[key]
+                    return True
+        return False
     
     """
     # Insert a record with specified columns
@@ -37,38 +45,60 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        schema_encoding = '0' * self.table.num_columns
+        # schema_encoding = '0' * self.table.num_columns
         
-        # get last base page
-        current_base_page=self.table.base_page[-1]
-        # get last record index
-        row_index=current_base_page.get_len()-1
-        # get last base page index
-        page_index=len(self.table.base_page)-1
+        # # get last base page
+        # current_base_page=self.table.base_page[-1]
+        # # get last record index
+        # row_index=current_base_page.get_len()-1
+        # # get last base page index
+        # page_index=len(self.table.base_page)-1
 
-        # assign rid to new record
+        # # assign rid to new record
+        # rid=self.table.num_records
+
+        # # indirection
+        # indirection = rid
+        # # timestamp
+        # timestamp = None
+
+        # # if len(current_base_page)+1> 4096:
+        # #     self.table.base_page.append([])
+
+        # # if current base page does not have enough space
+        # if not current_base_page.has_space():
+        #     # make a new base page 
+        #     self.table.base_page.append(BasePage(self.table.num_columns))
+        #     current_base_page = self.table.base_page[-1]
+        # record = Record(rid=rid, key=row_index, columns=list(columns))
+        # current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
+        # self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
+
+        # self.table.page_directory[rid]=("base", page_index,row_index)
+
+        # # increment num_records upon successful insertion
+        # self.table.num_records += 1
+        # return True
+
         rid=self.table.num_records
-
-        # indirection
-        indirection = rid
-        # timestamp
-        timestamp = None
-
-        # if len(current_base_page)+1> 4096:
-        #     self.table.base_page.append([])
-
-        # if current base page does not have enough space
+        schema_encoding = '0' * self.table.num_columns
+        current_base_page=self.table.base_page[-1]
         if not current_base_page.has_space():
-            # make a new base page 
-            self.table.base_page.append(BasePage(self.table.num_columns))
-            current_base_page = self.table.base_page[-1]
-        record = Record(rid=rid, key=row_index, columns=list(columns))
-        current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
-        self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
+            base_page=BasePage(self.table.num_columns)
+            self.table.base_pages.append(base_page)
+        current_base_page=self.table.base_page[-1]
+        for i, value in enumerate(columns):
+            current_base_page.records[i].append(value)
+        
+        #adding indirection, schema, rid to basepage
+        current_base_page.records[-1].append(rid) #indirection
+        current_base_page.records[-2].append(schema_encoding) #schema
+        current_base_page.records[-3].append(rid) #rid
 
-        self.table.page_directory[rid]=("base", page_index,row_index)
+        row_index=current_base_page.get_len()-1
+        page_index=len(self.table.base_page)-1
+        self.table.page_directory[rid]=("basse", page_index,row_index)
 
-        # increment num_records upon successful insertion
         self.table.num_records += 1
         return True
     
