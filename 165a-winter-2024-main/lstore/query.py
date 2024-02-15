@@ -21,14 +21,24 @@ class Query:
     # Return False if record doesn't exist or is locked due to 2PL
     """
     def delete(self, primary_key):
-        # dont we have to iterate through each page to find the specific rid to delete
-        if primary_key not in self.table.page_directory: 
-            return False
         #check for locked
         # if primary key is locked
-        del self.table.page_directory[primary_key]
-        
-        return True
+        for key in self.table.page_directory:
+            page_index=self.table.page_directory[key][1]
+            row_index=self.table.page_directory[key][2]
+            key_index=self.table.key
+            #check base page
+            if self.table.page_directory[key][0]=="base":     
+                if self.table.base_page[page_index].records[key_index][row_index]== primary_key:
+                    del self.table.page_directory[key]
+                    return True
+            #check tail page
+            elif self.table.page_directory[key][0]=="tail":
+                if self.table.tail_page[page_index].records[key_index][row_index]== primary_key:
+                    del self.table.page_directory[key]
+                    return True
+
+        return False
     
     
     """
@@ -197,6 +207,7 @@ class Query:
 
         # check if elements are changed, update schema
         schema = self.updateSchema(columns, record, record_metadata)
+        print("finished schema")
 
         # timestamp
         timestamp = None
