@@ -104,8 +104,10 @@ class Query:
         # FIXME: how do u know if the record is in the base page or tail page?
         self.table.page_directory[rid]=("base", page_index, row_index)
 
-        print("-- insert", self.getRecord("base", page_index, row_index))
-        print("   in ", page_index, row_index)
+        # print("-- insert", self.getRecord("base", page_index, row_index))
+        # print("   in ", page_index, row_index)
+        # print(len(self.table.page_directory), self.table.page_directory.values())
+
         current_base_page.num_records += 1
         self.table.num_records += 1
         return True
@@ -135,7 +137,7 @@ class Query:
         records = []
         for page_type, page_index, row_index in self.table.page_directory.values():
             record = self.getRecord(page_type, page_index, row_index)
-            print("record", record)
+            # print("record", record)
             if record[search_key_index] == search_key:
                 projected_record = [record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
                 records.append(Record(record[-3], record[-3], projected_record))
@@ -164,12 +166,23 @@ class Query:
     # WIP: MAY HAVE MISSED SOMETHING, CHECK IF THIS IS RIGHT
     def update(self, primary_key, *columns):
         columns = list(columns)
-        record = self.table.page_directory.get(primary_key)
-        # WIP: CAN YOU UPDATE A TAIL PAGE RECORD???
+        record = None
+        # check for the record with that primary key
+        for key, value in self.table.page_directory.items():
+            page_type = value[0]
+            page_index = value[1]
+            row_index = value[2]
+            page = None
+            if page_type == "base":
+                page = self.table.base_page
+            else:
+                page = self.table.tail_page
+            if page[page_index].records[self.table.key][row_index] == primary_key:
+                record = self.getRecord(page_type, page_index, row_index)
+                break
         if not record:
             return False
-        page_type, page_index, row_index = record
-        record = self.getRecord(page_type, page_index, row_index)
+        page_type, page_index, row_index = self.table.page_directory[record]
         
         # new record, rid
         rid = self.table.num_records
