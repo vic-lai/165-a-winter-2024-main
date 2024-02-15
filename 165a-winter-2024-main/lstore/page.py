@@ -42,4 +42,6 @@ class TailPage(Page):
     def has_space(self):
         return self.has_capacity()
     def get_len(self):
-        return len(self.records)
+        if self.records:
+            return len(self.records[0])
+        return 0

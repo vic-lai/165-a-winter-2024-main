@@ -33,7 +33,6 @@ class Table:
         self.num_records = 0
         # self.base_page=[[]]
         # self.tail_page=[[]]
-        self.record_metadata = {} # {rid:[indirection, rid, timestamp, schema_encoding]}
         pass
 
     def __merge(self):

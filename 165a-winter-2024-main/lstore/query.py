@@ -33,10 +33,11 @@ class Query:
                     del self.table.page_directory[key]
                     return True
             #check tail page
-            else:
+            elif self.table.page_directory[key][0]=="tail":
                 if self.table.tail_page[page_index].records[key_index][row_index]== primary_key:
                     del self.table.page_directory[key]
                     return True
+
         return False
     
     """
@@ -97,7 +98,7 @@ class Query:
 
         row_index=current_base_page.get_len()-1
         page_index=len(self.table.base_page)-1
-        self.table.page_directory[rid]=("basse", page_index,row_index)
+        self.table.page_directory[rid]=("base", page_index,row_index)
 
         self.table.num_records += 1
         return True
