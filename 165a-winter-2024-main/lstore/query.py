@@ -166,6 +166,7 @@ class Query:
     # WIP: MAY HAVE MISSED SOMETHING, CHECK IF THIS IS RIGHT
     def update(self, primary_key, *columns):
         columns = list(columns)
+        record_rid = None
         record = None
         # check for the record with that primary key
         for key, value in self.table.page_directory.items():
@@ -179,10 +180,12 @@ class Query:
                 page = self.table.tail_page
             if page[page_index].records[self.table.key][row_index] == primary_key:
                 record = self.getRecord(page_type, page_index, row_index)
+                record_rid = key
                 break
         if not record:
             return False
-        page_type, page_index, row_index = self.table.page_directory[record]
+        print("update record", record)
+        # page_type, page_index, row_index = self.table.page_directory[record_rid]
         
         # new record, rid
         rid = self.table.num_records
@@ -214,6 +217,7 @@ class Query:
             current_tail_page.records[i].append(value)
         
         #adding indirection, schema, rid to basepage
+        # indirection 
         current_tail_page.records[-4].append(prev_indirection) # indirection
         current_tail_page.records[-3].append(rid) # rid
         current_tail_page.records[-2].append(timestamp) # timestamp
@@ -230,11 +234,12 @@ class Query:
         current_tail_page.num_records += 1
 
         # change indirection of base record to the new tail record rid
-        base_rid = prev_indirection
-        while self.table.page_directory[base_rid][0] != "page":
-            base_record = self.getRecord(self.table.page_directory[base_rid])
-
-            base_rid = base_record
+        # base_rid = prev_indirection
+        # while self.table.page_directory[base_rid][0] != "page":
+        #     base_record = self.getRecord(self.table.page_directory[base_rid])
+        #     base_rid = base_record[-4]
+        # base_page_type, base_page_index, base_row_index = self.table.page_directory[base_rid]
+        # self.table.base_page[base_page_index].records[-4][base_row_index] = rid
 
         # increment num_records upon successful update
         self.table.num_records += 1
