@@ -188,7 +188,7 @@ class Query:
         rid = self.table.num_records
         
         # get metadata of record
-        record_metadata = self.table.record_metadata[record[0]]
+        record_metadata = record[-4: ]
         # previous indirection rid
         prev_indirection = record_metadata[0]
 
@@ -197,30 +197,42 @@ class Query:
 
         # timestamp
         timestamp = None
-        
-        # insert but onto the tail page
-        ## get last tail page
+
+        # insert into tail page
+        # get last tail page
         current_tail_page=self.table.tail_page[-1]
-        ## get last record index
-        row_index=current_tail_page.get_len()-1
-        ## get last tail page index
-        page_index=len(self.table.tail_page)-1
-
+        # if current tail page does not have space
         if not current_tail_page.has_space():
-            # make a new tail page 
-            self.table.tail_page.append(TailPage(self.table.num_columns))
+            # make a new tail page
+            new_tail_page=TailPage(self.table.num_columns)
+            # append it onto the table
+            self.table.tail_page.append(new_tail_page)
+            # make that the current tail page
             current_tail_page = self.table.tail_page[-1]
-        new_record = Record(rid, row_index, columns)
-        current_tail_page.records.append([rid,row_index]+[new_record]+[schema])
-        self.table.record_metadata[rid] = [prev_indirection, rid, timestamp, schema]
+        # put record data in tail page
+        for i, value in enumerate(columns):
+            current_tail_page.records[i].append(value)
+        
+        #adding indirection, schema, rid to basepage
+        current_tail_page.records[-4].append(rid) # indirection
+        current_tail_page.records[-3].append(rid) # rid
+        current_tail_page.records[-2].append(timestamp) # timestamp
+        current_tail_page.records[-1].append(schema) # schema
 
-        self.table.page_directory[rid]=("tail", page_index,row_index)
+        row_index=current_tail_page.get_len()-1
+        page_index=len(self.table.tail_page)-1
+        self.table.page_directory[rid]=("tail", page_index, row_index)
+
+        # print("-- insert", self.getRecord("tail", page_index, row_index))
+        # print("   in ", page_index, row_index)
+        # print(len(self.table.page_directory), self.table.page_directory.values())
+
+        current_tail_page.num_records += 1
+        # increment num_records upon successful update
+        self.table.num_records += 1
 
         # change indirection of base record to the new tail record rid
         record_metadata[0] = rid
-
-        # increment num_records upon successful update
-        self.table.num_records += 1
         return True
 
     def updateSchema(self, columns, record, record_metadata):
