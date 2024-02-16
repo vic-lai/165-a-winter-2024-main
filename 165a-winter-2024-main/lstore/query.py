@@ -144,12 +144,52 @@ class Query:
 
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
+        # print("search key i", search_key_index, search_key)
         for page_type, page_index, row_index in self.table.page_directory.values():
+            page = None
+            if page_type == "tail":
+                continue
+                
+            # get base page record
             record = self.getRecord(page_type, page_index, row_index)
             # print("record", record)
-            if record[search_key_index] == search_key:
-                projected_record = [record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
-                records.append(Record(record[-3], record[-3], projected_record))
+            # get its latest updated tail page record
+            updated_rid = record[-4]
+            updated_record_type, updated_record_page_index, updated_record_row_index = self.table.page_directory[updated_rid]
+            updated_record = self.getRecord(updated_record_type, updated_record_page_index, updated_record_row_index)
+            
+            # print("record", record)
+            # print("updated record", updated_record)
+            # if the indirection of base record points to a tail
+            if updated_record_type == "tail":
+                # check if updated record matches with primary key
+                page = self.table.tail_page
+                if updated_record[search_key_index] == search_key:
+                    # print("updated record", updated_record)
+                    projected_record = [updated_record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
+                    records.append(Record(updated_record[-3], updated_record[self.table.key], projected_record))
+            else:
+                # if indirection of base record points to itself
+                # check if the record matches with primary key
+                page = self.table.base_page
+                if updated_record[search_key_index] == search_key:
+                    # print("updated record", updated_record)
+                    projected_record = [updated_record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
+                    records.append(Record(updated_record[-3], updated_record[self.table.key], projected_record))
+        
+        
+        # for page_type, page_index, row_index in self.table.page_directory.values():
+        #     record = self.getRecord(page_type, page_index, row_index)
+        #     # print("record", record)
+        #     if record[search_key_index] == search_key:
+        #         projected_record = [record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
+        #         records.append(Record(record[-3], record[-3], projected_record))
+
+        # for each in records:
+        #     print("records", each.rid, each.key, each.columns)
+        
+        # if len(records) == 1:
+        #     return records[0]
         return records
 
     
@@ -260,7 +300,7 @@ class Query:
                 # get latest cols that were unchanged
                 current_tail_page.records[i].append(prev_indirection_record[i])
         
-        #adding indirection, schema, rid to basepage
+        #adding base record, indirection, rid, timestamp schema
         current_tail_page.records[-5].append(base_rid) # base record
         current_tail_page.records[-4].append(prev_indirection) # indirection
         current_tail_page.records[-3].append(rid) # rid
