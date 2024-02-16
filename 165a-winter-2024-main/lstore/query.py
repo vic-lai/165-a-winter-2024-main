@@ -184,7 +184,7 @@ class Query:
         #     if record[search_key_index] == search_key:
         #         projected_record = [record[i] for i in range(self.table.num_columns) if projected_columns_index[i]]
         #         records.append(Record(record[-3], record[-3], projected_record))
-
+ 
         # for each in records:
         #     print("records", each.rid, each.key, each.columns)
         
