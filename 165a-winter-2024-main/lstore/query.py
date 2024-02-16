@@ -224,6 +224,8 @@ class Query:
             page_type = value[0]
             page_index=value[1]
             row_index=value[2]
+            # print(key, page_type, page_index, row_index)
+
             page = None
             if page_type == "tail":
                 continue
@@ -234,7 +236,9 @@ class Query:
             # get its latest updated tail page record
             updated_rid = record[-4]
             updated_record_type, updated_record_page_index, updated_record_row_index = self.table.page_directory[updated_rid]
-            
+            updated_record = self.getRecord(updated_record_type, updated_record_page_index, updated_record_row_index)
+            # print("updated record", updated_record)
+
             # if the indirection of base record points to a tail
             if updated_record_type == "tail":
                 # check if updated record matches with primary key
@@ -249,7 +253,7 @@ class Query:
                 if page[page_index].records[self.table.key][row_index] == primary_key:
                     record_rid = key
                     break
-        if not record_rid:
+        if record_rid == None:
             return False
         # print("update record", record)
         # page_type, page_index, row_index = self.table.page_directory[record_rid]
