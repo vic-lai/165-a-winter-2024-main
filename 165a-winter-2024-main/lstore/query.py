@@ -111,7 +111,6 @@ class Query:
 
         row_index=current_base_page.get_len()-1
         page_index=len(self.table.base_page)-1
-        # FIXME: how do u know if the record is in the base page or tail page?
         self.table.page_directory[rid]=("base", page_index, row_index)
 
         # print("-- insert", self.getRecord("base", page_index, row_index))
@@ -141,7 +140,7 @@ class Query:
         record = []
         for col in page[page_index].records:
             record.append(col[row_index])
-        return record # returns [columns, indirection, rid, timestamp, schema encoding]
+        return record # returns [columns, (if tail: base_rid), indirection, rid, timestamp, schema encoding]
 
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
@@ -175,26 +174,44 @@ class Query:
     """
     # WIP: MAY HAVE MISSED SOMETHING, CHECK IF THIS IS RIGHT
     def update(self, primary_key, *columns):
+        # print(primary_key)
         columns = list(columns)
+        # print(columns)
         record_rid = None
         record = None
-        # check for the record with that primary key
+        # look for the record with that primary key
         for key, value in self.table.page_directory.items():
             page_type = value[0]
-            page_index = value[1]
-            row_index = value[2]
+            page_index=value[1]
+            row_index=value[2]
             page = None
-            if page_type == "base":
-                page = self.table.base_page
-            else:
+            if page_type == "tail":
+                continue
+                
+            # get base page record
+            record = self.getRecord(page_type, page_index, row_index)
+            # print("record", record)
+            # get its latest updated tail page record
+            updated_rid = record[-4]
+            updated_record_type, updated_record_page_index, updated_record_row_index = self.table.page_directory[updated_rid]
+            
+            # if the indirection of base record points to a tail
+            if updated_record_type == "tail":
+                # check if updated record matches with primary key
                 page = self.table.tail_page
-            if page[page_index].records[self.table.key][row_index] == primary_key:
-                record = self.getRecord(page_type, page_index, row_index)
-                record_rid = key
-                break
-        if not record:
+                if page[updated_record_page_index].records[self.table.key][updated_record_row_index] == primary_key:
+                    record_rid = updated_rid
+                    break
+            else:
+                # if indirection of base record points to itself
+                # check if the record matches with primary key
+                page = self.table.base_page
+                if page[page_index].records[self.table.key][row_index] == primary_key:
+                    record_rid = key
+                    break
+        if not record_rid:
             return False
-        print("update record", record)
+        # print("update record", record)
         # page_type, page_index, row_index = self.table.page_directory[record_rid]
         
         # new record, rid
@@ -206,8 +223,9 @@ class Query:
         prev_indirection = record_metadata[0]
 
         # check if elements are changed, update schema
+        # print("before schemea")
         schema = self.updateSchema(columns, record, record_metadata)
-        print("finished schema")
+        # print("finished schema")
 
         # timestamp
         timestamp = None
@@ -223,12 +241,27 @@ class Query:
             self.table.tail_page.append(new_tail_page)
             # make that the current tail page
             current_tail_page = self.table.tail_page[-1]
+
+        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index = self.table.page_directory[prev_indirection]
+        prev_indirection_record = self.getRecord(prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index)
+        base_rid = None
+        if prev_indirection_page_type == "tail":
+            base_rid = prev_indirection_record[-5]
+        else:
+            base_rid = prev_indirection
+        base_page_type, base_page_index, base_row_index = self.table.page_directory[base_rid]
+        base_record = self.getRecord(page_type, page_index, row_index)
+
         # put record data in tail page
         for i, value in enumerate(columns):
-            current_tail_page.records[i].append(value)
+            if value != None:
+                current_tail_page.records[i].append(value)
+            else:
+                # get latest cols that were unchanged
+                current_tail_page.records[i].append(prev_indirection_record[i])
         
         #adding indirection, schema, rid to basepage
-        # indirection 
+        current_tail_page.records[-5].append(base_rid) # base record
         current_tail_page.records[-4].append(prev_indirection) # indirection
         current_tail_page.records[-3].append(rid) # rid
         current_tail_page.records[-2].append(timestamp) # timestamp
@@ -239,37 +272,30 @@ class Query:
         self.table.page_directory[rid]=("tail", page_index, row_index)
 
         # print("-- insert", self.getRecord("tail", page_index, row_index))
-        # print("   in ", page_index, row_index)
+        # print("   in tail ", page_index, row_index)
         # print(len(self.table.page_directory), self.table.page_directory.values())
 
         current_tail_page.num_records += 1
 
         # change indirection of base record to the new tail record rid
-        # base_rid = prev_indirection
-        # while self.table.page_directory[base_rid][0] != "page":
-        #     base_record = self.getRecord(self.table.page_directory[base_rid])
-        #     base_rid = base_record[-4]
-        # base_page_type, base_page_index, base_row_index = self.table.page_directory[base_rid]
-        # self.table.base_page[base_page_index].records[-4][base_row_index] = rid
+        # print("base_page_index", base_page_index)
+        self.table.base_page[base_page_index].records[-4][base_row_index] = rid
+        # print("base record after insert", self.getRecord(base_page_type, base_page_index, base_row_index))
 
         # increment num_records upon successful update
         self.table.num_records += 1
         return True
 
     def updateSchema(self, columns, record, record_metadata):
-        schema = record_metadata[3]
-        ## get the indexes where schema[i] == 0, that means these columns stayed the same
-        i = 0
-        cols_unchanged = []
-        while i != -1: # until find() does not find any 0's
-            index_first_zero = schema[i:].find('0')
-            if index_first_zero != -1:
-                cols_unchanged.append(index_first_zero)
-            i = index_first_zero + 1
-        ## compare if these columns are being updated, update schema if they are
-        for i in cols_unchanged:
-            if columns[i] != record[2].columns[i]:
-                schema[i] = '1'
+        prev_indirection = record_metadata[-4]
+        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index = self.table.page_directory[prev_indirection]
+        prev_indirection_record = self.getRecord(prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index)
+        schema = prev_indirection_record[-1]
+        # print("schema", schema)
+        col_changed = [i for i, each in enumerate(columns) if each != None]
+        for each in col_changed:
+            schema = schema[:each] + '1' + schema[each + 1:]
+        # print(schema)
         return schema
 
     
