@@ -41,12 +41,20 @@ class Index:
     def create_index(self, column_number):
         if self.indices[column_number] is None:
             self.indices[column_number] = {}
-            for page in self.table.page_directory.values():
-                for record in page.records:
-                    value = record.columns[column_number]
-                    if value not in self.indices[column_number]:
-                        self.indices[column_number][value] = []
-                    self.indices[column_number][value].append(record.rid)
+            for val in self.table.page_directory.values():
+                record = self.table.getRecord(val[0],val[1],val[2])
+                if(val[3]=="base"):
+                    updated_rid = record[-4]
+                    # skip record if deleted
+                    if updated_record[-4] == -1:
+                        continue
+                    #get the latest record
+                    updated_page_type, updated_record_page_index, updated_record_row_index, updated_record_type = self.table.page_directory.page_map[updated_rid]
+                    updated_record = self.getRecord(updated_page_type, updated_record_page_index, updated_record_row_index)
+                    if updated_record[column_number] not in self.indices[column_number]:
+                        self.indices[column_number][updated_record[column_number]] = []
+                    #append rid of base record
+                    self.indices[column_number][updated_record[column_number]].append(record[-3])
                     
 
     """

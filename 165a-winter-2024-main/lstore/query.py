@@ -1,6 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
 from lstore.page import BasePage, TailPage
+import time
 
 class Query:
     """
@@ -23,21 +24,20 @@ class Query:
     def delete(self, primary_key):
         #check for locked
         # if primary key is locked
-        for key in self.table.page_directory:
-            page_index=self.table.page_directory[key][1]
-            row_index=self.table.page_directory[key][2]
+        for key in self.table.page_directory.page_map:
+            page_index=self.table.page_directory.page_map[key][1]
+            row_index=self.table.page_directory.page_map[key][2]
             key_index=self.table.key
             #check base page
-            if self.table.page_directory[key][0]=="base":     
+            if self.table.page_directory.page_map[key][3]=="base":     
                 if self.table.base_page[page_index].records[key_index][row_index]== primary_key:
-                    del self.table.page_directory[key]
+                    self.table.base_page[page_index].records[-4][row_index] = -1
                     return True
             #check tail page
-            elif self.table.page_directory[key][0]=="tail":
+            elif self.table.page_directory.page_map[key][3]=="tail":
                 if self.table.tail_page[page_index].records[key_index][row_index]== primary_key:
-                    del self.table.page_directory[key]
+                    self.table.tail_page[page_index].records[-4][row_index] = -1
                     return True
-
         return False
     
     
@@ -46,49 +46,13 @@ class Query:
     # Return True upon succesful insertion
     # Returns False if insert fails for whatever reason
     """
-    # def insert(self, *columns):
-    #     schema_encoding = '0' * self.table.num_columns
-        
-    #     # get last base page
-    #     current_base_page=self.table.base_page[-1]
-    #     # get last record index
-    #     row_index=current_base_page.get_len()-1
-    #     # get last base page index
-    #     page_index=len(self.table.base_page)-1
-
-    #     # assign rid to new record
-    #     rid=self.table.num_records
-
-    #     # indirection
-    #     indirection = rid
-    #     # timestamp
-    #     timestamp = None
-
-    #     # if len(current_base_page)+1> 4096:
-    #     #     self.table.base_page.append([])
-
-    #     # if current base page does not have enough space
-    #     if not current_base_page.has_space():
-    #         # make a new base page 
-    #         self.table.base_page.append(BasePage(self.table.num_columns))
-    #         current_base_page = self.table.base_page[-1]
-    #     record = Record(rid=rid, key=row_index, columns=list(columns))
-    #     current_base_page.records.append([rid,row_index]+[record]+[schema_encoding])
-    #     self.table.record_metadata[rid] = [indirection, rid, timestamp, schema_encoding]
-
-    #     self.table.page_directory[rid]=("base", page_index,row_index)
-
-    #     # increment num_records upon successful insertion
-    #     self.table.num_records += 1
-    #     return True
-    
     def insert(self, *columns): 
         # assign new rid to new record
         rid=self.table.num_records
         # schema for new record
         schema_encoding = '0' * self.table.num_columns
         # timestamp: for future milestones
-        timestamp = None
+        timestamp = time.time()
         # get last base page
         current_base_page=self.table.base_page[-1]
         # if current base page does not have space
@@ -111,11 +75,11 @@ class Query:
 
         row_index=current_base_page.get_len()-1
         page_index=len(self.table.base_page)-1
-        self.table.page_directory[rid]=("base", page_index, row_index)
+        self.table.page_directory.page_map[rid]=("base", page_index, row_index, "base")
 
         # print("-- insert", self.getRecord("base", page_index, row_index))
         # print("   in ", page_index, row_index)
-        # print(len(self.table.page_directory), self.table.page_directory.values())
+        # print(len(self.table.page_directory.page_map), self.table.page_directory.page_map.values())
 
         current_base_page.num_records += 1
         self.table.num_records += 1
@@ -145,9 +109,9 @@ class Query:
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
         # print("search key i", search_key_index, search_key)
-        for page_type, page_index, row_index in self.table.page_directory.values():
+        for page_type, page_index, row_index, record_type in self.table.page_directory.page_map.values():
             page = None
-            if page_type == "tail":
+            if record_type == "tail":
                 continue
                 
             # get base page record
@@ -155,8 +119,12 @@ class Query:
             # print("record", record)
             # get its latest updated tail page record
             updated_rid = record[-4]
-            updated_record_type, updated_record_page_index, updated_record_row_index = self.table.page_directory[updated_rid]
-            updated_record = self.getRecord(updated_record_type, updated_record_page_index, updated_record_row_index)
+            updated_page_type, updated_record_page_index, updated_record_row_index, updated_record_type = self.table.page_directory.page_map[updated_rid]
+            updated_record = self.getRecord(updated_page_type, updated_record_page_index, updated_record_row_index)
+
+            # skip record if deleted
+            if updated_record[-4] == -1:
+                continue
             
             # print("record", record)
             # print("updated record", updated_record)
@@ -178,7 +146,7 @@ class Query:
                     records.append(Record(updated_record[-3], updated_record[self.table.key], projected_record))
         
         
-        # for page_type, page_index, row_index in self.table.page_directory.values():
+        # for page_type, page_index, row_index in self.table.page_directory.page_map.values():
         #     record = self.getRecord(page_type, page_index, row_index)
         #     # print("record", record)
         #     if record[search_key_index] == search_key:
@@ -220,14 +188,15 @@ class Query:
         record_rid = None
         record = None
         # look for the record with that primary key
-        for key, value in self.table.page_directory.items():
+        for key, value in self.table.page_directory.page_map.items():
             page_type = value[0]
             page_index=value[1]
             row_index=value[2]
+            record_type = value[3]
             # print(key, page_type, page_index, row_index)
 
             page = None
-            if page_type == "tail":
+            if record_type == "tail":
                 continue
                 
             # get base page record
@@ -235,9 +204,13 @@ class Query:
             # print("record", record)
             # get its latest updated tail page record
             updated_rid = record[-4]
-            updated_record_type, updated_record_page_index, updated_record_row_index = self.table.page_directory[updated_rid]
-            updated_record = self.getRecord(updated_record_type, updated_record_page_index, updated_record_row_index)
+            updated_page_type, updated_record_page_index, updated_record_row_index, updated_record_type = self.table.page_directory.page_map[updated_rid]
+            updated_record = self.getRecord(updated_page_type, updated_record_page_index, updated_record_row_index)
             # print("updated record", updated_record)
+
+            # skip record if deleted
+            if updated_record[-4] == -1:
+                continue
 
             # if the indirection of base record points to a tail
             if updated_record_type == "tail":
@@ -256,7 +229,7 @@ class Query:
         if record_rid == None:
             return False
         # print("update record", record)
-        # page_type, page_index, row_index = self.table.page_directory[record_rid]
+        # page_type, page_index, row_index = self.table.page_directory.page_map[record_rid]
         
         # new record, rid
         rid = self.table.num_records
@@ -272,7 +245,7 @@ class Query:
         # print("finished schema")
 
         # timestamp
-        timestamp = None
+        timestamp = time.time()
 
         # insert into tail page
         # get last tail page
@@ -286,14 +259,14 @@ class Query:
             # make that the current tail page
             current_tail_page = self.table.tail_page[-1]
 
-        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index = self.table.page_directory[prev_indirection]
+        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index, prev_indirection_record_type = self.table.page_directory.page_map[prev_indirection]
         prev_indirection_record = self.getRecord(prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index)
         base_rid = None
-        if prev_indirection_page_type == "tail":
+        if prev_indirection_record_type == "tail":
             base_rid = prev_indirection_record[-5]
         else:
             base_rid = prev_indirection
-        base_page_type, base_page_index, base_row_index = self.table.page_directory[base_rid]
+        base_page_type, base_page_index, base_row_index, _ = self.table.page_directory.page_map[base_rid]
         base_record = self.getRecord(page_type, page_index, row_index)
 
         # put record data in tail page
@@ -313,11 +286,11 @@ class Query:
 
         row_index=current_tail_page.get_len()-1
         page_index=len(self.table.tail_page)-1
-        self.table.page_directory[rid]=("tail", page_index, row_index)
+        self.table.page_directory.page_map[rid]=("tail", page_index, row_index, "tail")
 
         # print("-- insert", self.getRecord("tail", page_index, row_index))
         # print("   in tail ", page_index, row_index)
-        # print(len(self.table.page_directory), self.table.page_directory.values())
+        # print(len(self.table.page_directory.page_map), self.table.page_directory.page_map.values())
 
         current_tail_page.num_records += 1
 
@@ -328,11 +301,22 @@ class Query:
 
         # increment num_records upon successful update
         self.table.num_records += 1
+
+        # Increment the update counter
+        self.table.update_counter += 1
+
+        # Check if the update counter exceeds the merge threshold
+        if self.table.update_counter >= 500:
+            # Trigger the merge process
+            self.table.start_merge_thread()
+
         return True
+
+        
 
     def updateSchema(self, columns, record, record_metadata):
         prev_indirection = record_metadata[-4]
-        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index = self.table.page_directory[prev_indirection]
+        prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index, _ = self.table.page_directory.page_map[prev_indirection]
         prev_indirection_record = self.getRecord(prev_indirection_page_type, prev_indirection_page_index, prev_indirection_row_index)
         schema = prev_indirection_record[-1]
         # print("schema", schema)
