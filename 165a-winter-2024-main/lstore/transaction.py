@@ -95,10 +95,20 @@ class Transaction:
     
     def abort(self):
         #TODO: do roll-back and any other necessary operations
+        for query, table, args in reversed(self.queries):
+            self.lock_manager.transaction_lock -= 1
+            self.lock_manager.transaction_lock = max(self.lock_manager.transaction_lock, 0)
+            if hasattr(table, "rid"):
+                self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
         return False
 
     
     def commit(self):
         # TODO: commit to database
+        for query, table, args in self.queries:
+            self.lock_manager.transaction_lock -= 1
+            self.lock_manager.transaction_lock = max(self.lock_manager.transaction_lock, 0)
+            if hasattr(table, "rid"):
+                self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
         return True
 
