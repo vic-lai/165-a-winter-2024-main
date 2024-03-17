@@ -1,44 +1,66 @@
 from lstore.table import Table, Record
 from lstore.index import Index
+import threading
 
-
+class Latch:
+    def __init__(self):
+        self.latch=threading.Lock()
 class LockManager:
     def __init__(self):
         self.lock_map={}
         self.transaction_lock=0
+
     def exclusive_lock(self,rid,tid):
         if rid not in self.lock_map:
-            self.lock_map[rid]={"exclusive":None,"shared":[]}
+            self.lock_map[rid]={"exclusive":None,"shared":[],"latch":Latch()}
+        latch=self.lock_map[rid]["latch"]
         exclusive_lock=self.lock_map[rid]["exclusive"]
         shared_locks=self.lock_map[rid]["shared"]
-        if exclusive_lock is not None or len(shared_locks)!=0:
-            return False
-        self.lock_map[rid]["exclusive"]=tid
-        self.transaction_lock+=1
-        return True
+        latch.acquire()
+        with latch:
+            if exclusive_lock is not None or len(shared_locks)!=0:
+                latch.release()
+                return False
+            self.lock_map[rid]["exclusive"]=tid
+            self.transaction_lock+=1
+            latch.release()
+            return True
     def unlock_exclusive_lock(self,rid,tid):
         if rid in self.lock_map:
+            latch=self.lock_map[rid]["latch"]
             exclusive_lock=self.lock_map[rid]["exclusive"]
             if exclusive_lock == tid:
-                self.lock_map[rid]["exclusive"]=None  
-                self.transaction_lock-=1
+                latch.acquire()
+                with latch:
+                    self.lock_map[rid]["exclusive"]=None  
+                    self.transaction_lock-=1
+                    latch.release()
     def shared_lock(self,rid,tid):
         if rid not in self.lock_map:
-            self.lock_map[rid]={"exclusive":None,"shared":[]}
+            self.lock_map[rid]={"exclusive":None,"shared":[],"latch":Latch()}
+        latch=self.lock_map[rid]["latch"]
         shared_locks=self.lock_map[rid]["shared"]
         exclusive_lock=self.lock_map[rid]["exclusive"]
-        if exclusive_lock is not None:
-            return False
-        shared_locks.add(tid)
-        self.transaction_lock+=1
-        return True
+        latch.acquire()
+        with latch:
+            if exclusive_lock is not None:
+                latch.release()
+                return False
+            shared_locks.add(tid)
+            self.transaction_lock+=1
+            latch.release()
+            return True
     def unlock_shared_lock(self,rid,tid):
         if rid in self.lock_map:
             shared_locks=self.lock_map[rid]["shared"]
+            latch=self.lock_map[rid]["latch"]
             for i,lock_tid in enumerate(shared_locks):
                 if lock_tid==tid:
-                    shared_locks.pop(i)  
-                    self.transaction_lock-=1     
+                    latch.acquire()
+                    with latch:
+                        shared_locks.pop(i)  
+                        self.transaction_lock-=1
+                        latch.release()     
             
 class Transaction:
 
