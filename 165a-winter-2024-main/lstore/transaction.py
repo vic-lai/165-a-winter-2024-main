@@ -99,7 +99,10 @@ class Transaction:
             self.lock_manager.transaction_lock -= 1
             self.lock_manager.transaction_lock = max(self.lock_manager.transaction_lock, 0)
             if hasattr(table, "rid"):
-                self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
+                if query.__name__ == "select":
+                    self.lock_manager.unlock_shared_lock(table.rid, threading.current_thread().ident)
+                else:
+                    self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
         return False
 
     
@@ -109,6 +112,9 @@ class Transaction:
             self.lock_manager.transaction_lock -= 1
             self.lock_manager.transaction_lock = max(self.lock_manager.transaction_lock, 0)
             if hasattr(table, "rid"):
-                self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
+                if query.__name__ == "select":
+                    self.lock_manager.unlock_shared_lock(table.rid, threading.current_thread().ident)
+                else:
+                    self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
         return True
 
