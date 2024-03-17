@@ -6,6 +6,7 @@ import csv
 import io
 import collections
 from lstore.page import Page
+from lstore.transaction import LockManager
 import copy
 import time
 
@@ -46,6 +47,7 @@ class Table:
         self.update_counter = 0 # counter to track number of updates
         self.merge_threshold = 500 # update threshoold for triggering merge
         self.merge_thread = None
+        self.lock_manager=LockManager()
 
     def getRecord(self, page_type, page_index, row_index):
         page = None
