@@ -1,14 +1,32 @@
 from lstore.table import Table
+import os 
+# import pickle
 
+
+# def load_pickle_file(path):
+#     f = open(path, "rb")
+#     data = pickle.load(f)
+#     f.close()
+#     return data
+
+# # file: file path of table's metadata
+# # table: dictionary of metadata
+# def update_pickle_file(file, data):
+#     f = open(file, 'wb')
+#     pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+#     f.close()
 class Database():
 
     def __init__(self):
         self.tables = []
+        self.path = ""
         pass
 
     # Not required for milestone1
     def open(self, path):
-        pass
+        if not os.path.exists(path=path):
+            os.makedirs(path)
+        self.path = path
 
     def close(self):
         pass
@@ -20,8 +38,11 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
-        table = Table(name, num_columns, key_index)
+        table = Table(name, num_columns, key_index, self.path)
+        self.tables += table
+
         return table
+
 
     
     """
