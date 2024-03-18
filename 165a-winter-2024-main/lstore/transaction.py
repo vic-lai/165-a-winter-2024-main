@@ -11,7 +11,7 @@ class LockManager:
         self.transaction_lock=0
 
     def exclusive_lock(self,rid,tid):
-        if rid not in self.lock_map:
+        if rid not in self.lock_map: 
             self.lock_map[rid]={"exclusive":None,"shared":[],"latch":Latch()}
         latch=self.lock_map[rid]["latch"]
         exclusive_lock=self.lock_map[rid]["exclusive"]
@@ -69,6 +69,8 @@ class Transaction:
     """
     def __init__(self):
         self.queries = []
+        self.lock_map=LockManager()
+        self.tid = None
         pass
 
     """
@@ -79,14 +81,20 @@ class Transaction:
     # t.add_query(q.update, grades_table, 0, *[None, 1, None, 2, None])
     """
     def add_query(self, query, table, *args):
-        self.queries.append((query, args))
+        self.queries.append((query, table, args))
         # use grades_table for aborting
 
         
     # If you choose to implement this differently this method must still return True if transaction commits or False on abort
     def run(self):
-        for query, args in self.queries:
-            result = query(*args)
+        for query,table, args in self.queries:
+            status=None
+            if query.__name__=="select":
+                status=self.lock_map.shared_lock(table.rid, threading.current_thread().ident)
+            else:
+                status=self.lock_map.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
+            if status:
+                result = query(*args)
             # If the query has failed the transaction should abort
             if result == False:
                 return self.abort()
@@ -100,9 +108,9 @@ class Transaction:
             self.lock_manager.transaction_lock = max(self.lock_manager.transaction_lock, 0)
             if hasattr(table, "rid"):
                 if query.__name__ == "select":
-                    self.lock_manager.unlock_shared_lock(table.rid, threading.current_thread().ident)
+                    self.lock_map.unlock_shared_lock(table.rid, threading.current_thread().ident)
                 else:
-                    self.lock_manager.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
+                    self.lock_map.unlock_exclusive_lock(table.rid, threading.current_thread().ident)
         return False
 
     

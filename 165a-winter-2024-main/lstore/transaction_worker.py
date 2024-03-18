@@ -12,6 +12,8 @@ class TransactionWorker:
         self.transactions = transactions
         self.result = 0
         self.thread = None
+        self.lock=threading.Lock()
+        self.tid=0
         pass
 
     
@@ -19,6 +21,9 @@ class TransactionWorker:
     Appends t to transactions
     """
     def add_transaction(self, t):
+        with self.lock:
+            t.tid=self.tid+1
+            self.tid+=1
         self.transactions.append(t)
 
         
