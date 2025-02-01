@@ -81,9 +81,9 @@ L-store's **contention-free merge** process ensures that updates to records are 
     ```bash
     cd L-store
     ```
-3. Run the system (example):
+3. Run the system:
     ```bash
-    python main.py
+    python _main_.py
     ```
 
 ---
