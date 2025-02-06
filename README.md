@@ -1,4 +1,4 @@
-# L-store HTAP Database System
+# L-Store HTAP Database System
 
 ## 🚀 Overview
 
